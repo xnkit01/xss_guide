@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XSS Vulnerabilities Guide</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            850: '#1f2937',
+                            900: '#111827',
+                            950: '#030712',
+                        },
+                        brand: {
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Prism.js for Syntax Highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #030712; color: #f3f4f6; }
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+        /* Flow Diagram Styling */
+        .flow-diagram {
+            background-image: radial-gradient(#374151 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Sidebar active state */
+        .nav-link.active {
+            background-color: #1f2937;
+            color: #38bdf8;
+            border-left-color: #38bdf8;
+        }
+    </style>
+</head>
+<body class="antialiased flex h-screen overflow-hidden selection:bg-brand-500 selection:text-white">
+
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="lg:hidden fixed top-4 right-4 z-50 p-2 bg-gray-800 rounded-md text-gray-300 hover:text-white">
+        <i data-lucide="menu"></i>
+    </button>
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="w-72 bg-gray-900 border-r border-gray-800 flex-shrink-0 flex flex-col h-full transform -translate-x-full lg:translate-x-0 transition-transform duration-300 absolute lg:relative z-40">
+        <div class="p-6 border-b border-gray-800">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-red-500/10 text-red-500 rounded-lg">
+                    <i data-lucide="shield-alert" class="w-6 h-6"></i>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">XSS Guide</h1>
+            </div>
+            <p class="text-sm text-gray-400 mt-2">The Top 20 Vulnerabilities</p>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 space-y-1" id="nav-container">
+            <a href="#intro" class="nav-link block px-4 py-2 text-sm text-gray-300 rounded-lg hover:bg-gray-800 border-l-2 border-transparent transition-colors active">
+                Introduction to XSS
+            </a>
+            <!-- Links injected by JS -->
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto h-full scroll-smooth bg-gray-950 relative" id="main-content">
+        
+        <!-- Header Image / Hero -->
+        <div class="relative bg-gray-900 border-b border-gray-800 overflow-hidden" id="intro">
+            <div class="absolute inset-0 opacity-20">
+                <svg class="h-full w-full" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M0 40V0H40" fill="none" stroke="currentColor" stroke-opacity="0.2"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+                </svg>
+            </div>
+            <div class="relative max-w-4xl mx-auto px-6 py-20 lg:px-12">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-sm font-medium mb-6 border border-red-500/20">
+                    <i data-lucide="terminal" class="w-4 h-4"></i> Security Concept
+                </span>
+                <h1 class="text-4xl lg:text-5xl font-extrabold text-white mb-6 leading-tight">
+                    What is Cross-Site Scripting (XSS)?
+                </h1>
+                <div class="text-lg text-gray-300 space-y-4">
+                    <p>
+                        <strong>Cross-Site Scripting (XSS)</strong> is a widespread security vulnerability typically found in web applications. It allows attackers to inject malicious client-side scripts into web pages viewed by other users.
+                    </p>
+                    <p>
+                        Unlike other attacks that target the server directly, XSS targets the application's users. When a victim visits an infected web page, their browser executes the malicious script, mistakenly believing it came from a trusted source.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                        <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
+                            <i data-lucide="cookie" class="w-6 h-6 text-brand-400 mb-2"></i>
+                            <h3 class="font-semibold text-white mb-1">Session Hijacking</h3>
+                            <p class="text-sm text-gray-400">Stealing cookies to impersonate users.</p>
+                        </div>
+                        <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
+                            <i data-lucide="mouse-pointer-click" class="w-6 h-6 text-brand-400 mb-2"></i>
+                            <h3 class="font-semibold text-white mb-1">Unauthorized Actions</h3>
+                            <p class="text-sm text-gray-400">Forcing actions on behalf of the user.</p>
+                        </div>
+                        <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
+                            <i data-lucide="monitor-x" class="w-6 h-6 text-brand-400 mb-2"></i>
+                            <h3 class="font-semibold text-white mb-1">Defacement</h3>
+                            <p class="text-sm text-gray-400">Altering the appearance of the web page.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vulnerabilities List -->
+        <div class="max-w-4xl mx-auto px-6 py-12 lg:px-12 space-y-24" id="vulnerabilities-container">
+            <!-- Content injected by JS -->
+        </div>
+
+        <!-- Footer -->
+        <footer class="border-t border-gray-800 bg-gray-900 py-8 text-center text-gray-500 text-sm">
+            <p>Based on the "20 Most Common Cross-Site Scripting (XSS) Vulnerabilities" breakdown.</p>
+        </footer>
+    </main>
+
+    <!-- Overlay for mobile sidebar -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"></div>
+
+    <script>
+        // --- Data extracted from the PDF ---
+        const xssData = [
+            {
+                id: "1-reflected",
+                title: "1. Reflected XSS",
+                whatIsIt: "A vulnerability where malicious script injected by an attacker is immediately bounced (reflected) back off a web server to the victim's browser without being saved.",
+                howItWorks: [
+                    "The attacker crafts a malicious link containing a script payload.",
+                    "The attacker tricks the victim into clicking the link.",
+                    "The victim's request goes to the server, which includes the payload in its HTML response.",
+                    "The victim's browser executes the script thinking it came from the trusted server."
+                ],
+                flowDiagram: "[Attacker] --(Malicious Link)--> [Victim] --(HTTP Request with Payload)--> [Server]\n[Victim's Browser Executes Script] <--(HTML Response with Payload)-------------",
+                language: "php",
+                code: `<?php\n// PHP\n$name = $_GET['name'];\necho "<h1>Welcome, ". $name. "!</h1>";\n?>`,
+                whyMistake: "Developers assume that data sent in the current request (like search queries or filters) doesn't need sanitization because it's only meant for the user who requested it, forgetting that links can be shared or spoofed.",
+                whereFound: "Search result pages, error messages, and filtering interfaces.",
+                whyDangerous: "It allows attackers to steal session cookies, hijack user sessions, or perform actions on behalf of the user, requiring only a single click on a malicious link."
+            },
+            {
+                id: "2-stored",
+                title: "2. Stored XSS",
+                whatIsIt: "A vulnerability where the malicious script is permanently stored on the target server (e.g., in a database) and later served to users.",
+                howItWorks: [
+                    "The attacker submits a malicious script to the application.",
+                    "The application stores the script in its database.",
+                    "A victim navigates to a page where the stored data is displayed.",
+                    "The server serves the infected page, and the victim's browser executes the script."
+                ],
+                flowDiagram: "[Attacker] --(Injects Payload)--> [Server / Database (Payload Stored)]\n[Victim] --(Visits Page)--> [Server]\n[Victim's Browser Executes Script] <--(Infected HTML Delivered)--",
+                language: "javascript",
+                code: `// Node.js / Express\napp.post('/comment', (req, res) => {\n  db.saveComment(req.body.text); // Stored without sanitization\n});\n\napp.get('/post', (req, res) => {\n  const comment = db.getComment();\n  res.send(\`<div>\${comment}</div>\`); // Rendered without escaping\n});`,
+                whyMistake: "They assume data already in the database is 'safe' or forget to sanitize data on output, mistakenly thinking sanitizing only on input is enough.",
+                whereFound: "Comment sections, user profiles, forum posts, and message boards.",
+                whyDangerous: "It requires zero social engineering after the initial injection. Anyone visiting the affected page is automatically compromised."
+            },
+            {
+                id: "3-dom-based",
+                title: "3. DOM-Based XSS",
+                whatIsIt: "An XSS attack where the vulnerability exists entirely in the client-side code (browser). The payload never goes to the server; the DOM environment is modified maliciously.",
+                howItWorks: [
+                    "The attacker crafts a URL with a malicious payload (e.g., in the URL fragment/hash).",
+                    "The victim clicks the link.",
+                    "The server responds with the static page (without the payload).",
+                    "The client-side JavaScript reads the payload from the URL and executes it."
+                ],
+                flowDiagram: "[Attacker] --(Malicious URL Hash)--> [Victim's Browser]\n[Browser Requests Page] -> [Server] (Returns clean HTML/JS)\n[Client-side JS reads URL Hash and Executes Payload directly in DOM] <--",
+                language: "javascript",
+                code: `// Client-side JavaScript\nlet language = window.location.hash.substring(1);\ndocument.getElementById('greeting').innerHTML = "Welcome to the " + language + " page!";`,
+                whyMistake: "Developers trust client-side data sources (like window.location, document.referrer) and pass them into dangerous sinks (like eval, innerHTML) without validation.",
+                whereFound: "Single Page Applications (SPAs), hash-based routing, and client-side localization scripts.",
+                whyDangerous: "Because the payload often never reaches the server (e.g., everything after a # in a URL), server-side Web Application Firewalls (WAFs) cannot detect or block the attack."
+            },
+            {
+                id: "4-innerhtml",
+                title: "4. XSS via innerHTML",
+                whatIsIt: "A specific type of DOM-based XSS where untrusted data is assigned to an element's innerHTML property.",
+                howItWorks: [
+                    "JavaScript receives untrusted input (from URL, API, or form).",
+                    "The script assigns this input to element.innerHTML.",
+                    "The browser parses the input as HTML and executes any script tags or event handlers within it."
+                ],
+                flowDiagram: "[Untrusted Data Source] --> [JavaScript Variable] --> [element.innerHTML] --> [Browser Execution]",
+                language: "javascript",
+                code: `const userBio = getUserInput();\n// If userBio is "<img src='x' onerror='alert(1)'>", the script runs.\ndocument.querySelector('#bio-container').innerHTML = userBio;`,
+                whyMistake: "innerHTML is the most convenient way to render complex DOM structures quickly. Developers often use it out of habit instead of the safer textContent or innerText.",
+                whereFound: "Vanilla JavaScript applications, legacy jQuery applications, and custom UI components building dynamic HTML.",
+                whyDangerous: "It turns harmless strings into executable DOM elements immediately upon assignment."
+            },
+            {
+                id: "5-outerhtml",
+                title: "5. XSS via outerHTML",
+                whatIsIt: "Similar to innerHTML, but instead of replacing the contents inside an element, it replaces the element itself and its contents with untrusted HTML.",
+                howItWorks: [
+                    "The application takes untrusted input.",
+                    "The application assigns it to element.outerHTML.",
+                    "The original element is destroyed and replaced by the malicious HTML, triggering script execution."
+                ],
+                flowDiagram: "[Target DOM Element] --(outerHTML assignment with Payload)--> [Element Replaced] --> [Payload Executed]",
+                language: "javascript",
+                code: `let adBanner = document.getElementById('ad-banner');\nlet newAdHTML = getUntrustedAdData();\nadBanner.outerHTML = newAdHTML;`,
+                whyMistake: "When a developer needs to completely swap out an element (not just its children), outerHTML seems like the most logical choice.",
+                whereFound: "Dynamic widget loading, advertisement rotation scripts, and client-side template swapping.",
+                whyDangerous: "It completely removes the bounding element, which might have had security restrictions or sandbox attributes, replacing it entirely with attacker-controlled code."
+            },
+            {
+                id: "6-document-write",
+                title: "6. XSS via document.write()",
+                whatIsIt: "A DOM-based vulnerability caused by passing untrusted input directly into the document.write() or document.writeln() functions.",
+                howItWorks: [
+                    "The browser parses the HTML document.",
+                    "It encounters a <script> tag that reads untrusted input.",
+                    "The script passes that input to document.write().",
+                    "The browser injects the malicious string directly into the HTML stream being parsed."
+                ],
+                flowDiagram: "[HTML Parsing] --> [Encounters document.write(Payload)] --> [Payload written to Document Stream] --> [Execution]",
+                language: "html",
+                code: `<script>\nlet params = new URLSearchParams(window.location.search);\nlet trackerId = params.get("tracker");\ndocument.write("<img src='/track?id=" + trackerId + "'>");\n<\/script>`,
+                whyMistake: "document.write() is a legacy JavaScript function. Older tutorials and obsolete codebases heavily relied on it for synchronous content loading.",
+                whereFound: "Legacy web applications, older third-party analytics scripts, and outdated advertising snippets.",
+                whyDangerous: "It intercepts the browser's HTML parsing stream. Modern browsers heavily discourage its use because it is both a massive performance bottleneck and a severe security risk."
+            },
+            {
+                id: "7-insertadjacenthtml",
+                title: "7. XSS via insertAdjacentHTML()",
+                whatIsIt: "A vulnerability where untrusted data is passed to insertAdjacentHTML(), a method used to insert HTML strings at specific positions relative to an element.",
+                howItWorks: [
+                    "JavaScript receives malicious input.",
+                    "The script calls element.insertAdjacentHTML(position, input).",
+                    "The browser parses the string as HTML and inserts it into the DOM tree, executing the script."
+                ],
+                flowDiagram: "[Untrusted String] --> [insertAdjacentHTML('beforeend', String)] --> [Parsed into DOM] --> [Execution]",
+                language: "javascript",
+                code: `let newListItem = getUntrustedUserInput();\nlet list = document.getElementById('my-list');\nlist.insertAdjacentHTML('beforeend', '<li>' + newListItem + '</li>');`,
+                whyMistake: "Developers use this method because it is much faster than innerHTML (it doesn't re-parse the whole element). They trade security for performance without sanitizing the input.",
+                whereFound: "Infinite scrolling feeds, dynamic lists, and chat applications appending new messages.",
+                whyDangerous: "It carries the exact same risks as innerHTML but is often overlooked in security audits because it's a slightly less common DOM sink."
+            },
+            {
+                id: "8-html-attributes",
+                title: "8. XSS in HTML Attributes",
+                whatIsIt: "A vulnerability where user input is reflected inside an HTML attribute (like value, href, or src) without proper encoding, allowing the attacker to break out of the attribute.",
+                howItWorks: [
+                    "An attacker submits an input containing a closing quote and a new event handler (e.g., \"><script>alert(1)<\/script>).",
+                    "The server echoes this inside an attribute.",
+                    "The browser closes the original attribute prematurely and processes the attacker's injected code."
+                ],
+                flowDiagram: "[Attacker Payload: \" autofocus onfocus=\"alert(1)]\n[Server renders: <input type=\"text\" value=\"\" autofocus onfocus=\"alert(1)\">]\n[Browser Executes onfocus event]",
+                language: "php",
+                code: `<?php $color = $_GET['color']; // User inputs: red" onmouseover="alert(1) ?>\n<div style="color: <?php echo $color; ?>;">Text</div>`,
+                whyMistake: "Developers mistakenly believe that HTML context (inside tags) and Attribute context (inside quotes) use the same escaping rules. Standard HTML escaping often misses quotes or fails to neutralize javascript: URIs.",
+                whereFound: "Pre-filled form inputs, user-customizable themes/styles, and dynamic hyperlink generation.",
+                whyDangerous: "It bypasses basic HTML sanitization. If an application only strips < and >, an attacker can still execute code using event handlers like onload or onmouseover if they are already inside a tag."
+            },
+            {
+                id: "9-url-parameters",
+                title: "9. XSS in URL Parameters",
+                whatIsIt: "A specific form of Reflected XSS where the attack payload is delivered via the query string parameters of a URL.",
+                howItWorks: [
+                    "The application takes a parameter from the URL (e.g., ?q=payload).",
+                    "The server or client-side script reads q.",
+                    "The value is rendered to the page without escaping."
+                ],
+                flowDiagram: "[URL: example.com/page?query=<script>...] --> [App reads 'query'] --> [App renders directly to DOM]",
+                language: "java",
+                code: `<%-- Java JSP --%>\n<p>Return to: <%= request.getParameter("redirect_url") %></p>`,
+                whyMistake: "URL parameters are heavily relied upon for state management in stateless HTTP. Developers frequently echo them back to confirm user actions (e.g., 'Sort by: Price').",
+                whereFound: "Pagination controls, sorting filters, redirect endpoints, and search bars.",
+                whyDangerous: "It is incredibly easy to distribute. Attackers can mass-email the malicious URL or hide it behind link shorteners."
+            },
+            {
+                id: "10-form-fields",
+                title: "10. XSS in Form Fields",
+                whatIsIt: "An injection vulnerability occurring when a user's previous input is repopulated into a form field (usually after a validation error) without sanitization.",
+                howItWorks: [
+                    "The attacker submits a form with a malicious payload.",
+                    "The form validation fails (e.g., missing email).",
+                    "The server re-renders the form, inserting the attacker's payload into the value attribute so they don't have to retype it.",
+                    "The payload breaks out of the input field and executes."
+                ],
+                flowDiagram: "[Form Submission with Payload] --> [Server Validation Fails] --> [Server re-renders form with Payload in value=\"\"] --> [Execution]",
+                language: "html",
+                code: `<input type="text" name="username" value="{{ request.form.username | safe }}">`,
+                whyMistake: "UX best practices dictate that users shouldn't have to retype data if a form fails. Developers implement this repopulation but forget that the data is still untrusted.",
+                whereFound: "Registration forms, checkout pages, and complex data-entry portals.",
+                whyDangerous: "It bridges the gap between stored and reflected XSS, often catching developers off guard because they view form repopulation as an internal utility rather than an output sink."
+            },
+            {
+                id: "11-search-pages",
+                title: "11. XSS in Search Pages",
+                whatIsIt: "A classic Reflected XSS variant specifically located on a website's search feature, where the search query is displayed back to the user.",
+                howItWorks: [
+                    "The attacker crafts a link searching for a script tag.",
+                    "The victim clicks it.",
+                    "The server renders 'You searched for: [SCRIPT]'.",
+                    "The browser executes the script."
+                ],
+                flowDiagram: "[Victim searches for payload] --> [Server Query Processing] --> [HTML Response: <h2>Results for [Payload]</h2>] --> [Execution]",
+                language: "javascript",
+                code: `// React (using dangerouslySetInnerHTML improperly)\nfunction SearchResults({ query }) {\n  return <div dangerouslySetInnerHTML={{__html: \`Results for: \${query}\` }} />;\n}`,
+                whyMistake: "Displaying the user's search query is a fundamental UX requirement. Developers often use raw injection to quickly highlight or format the search term.",
+                whereFound: "E-commerce sites, knowledge bases, and global site search headers.",
+                whyDangerous: "Search inputs are ubiquitous and often the first thing automated vulnerability scanners and bug bounty hunters test."
+            },
+            {
+                id: "12-error-messages",
+                title: "12. XSS in Error Messages",
+                whatIsIt: "XSS that occurs when an application includes user input in an error message (like a 404 page or a database constraint error) without encoding it.",
+                howItWorks: [
+                    "The attacker requests a non-existent URL containing a payload, or triggers an application error intentionally.",
+                    "The application catches the error and generates a user-friendly message including the faulty input.",
+                    "The message is rendered in the browser, executing the payload."
+                ],
+                flowDiagram: "[Attacker triggers Error with Payload] --> [Server Exception Handler] --> [Generates Error Page with Payload] --> [Execution]",
+                language: "php",
+                code: `<?php\n$file = $_GET['file'];\nif(!file_exists($file)) {\n  die("Error: The file " . $file . " does not exist.");\n}\n?>`,
+                whyMistake: "Error handling code is often written hastily or as an afterthought. Developers focus on logging the error accurately rather than presenting it safely to the user.",
+                whereFound: "Custom 404 pages, file upload rejection messages, and API error readouts.",
+                whyDangerous: "Attackers can force errors easily (e.g., by changing a data type in a request). This exposes poorly audited parts of the application architecture."
+            },
+            {
+                id: "13-user-profiles",
+                title: "13. XSS in User Profiles",
+                whatIsIt: "A type of Stored XSS where the malicious payload is saved within a user's customizable profile fields (bio, name, status).",
+                howItWorks: [
+                    "The attacker creates an account.",
+                    "They place a script in their 'About Me' or 'First Name' field.",
+                    "Whenever another user views that profile, the script executes in their browser."
+                ],
+                flowDiagram: "[Attacker Updates Profile with Payload] --> [DB Updates]\n[Victim visits Attacker's Profile] -> [Server fetches Profile] --> [Browser executes Payload]",
+                language: "html",
+                code: `<!-- Django template without escaping -->\n<div>\n  <h3>About the author</h3>\n  <p>{{ user.profile.bio | safe }}</p>\n</div>`,
+                whyMistake: "To allow users to format their bios (bolding, italics), developers sometimes disable global HTML escaping for profile fields, opening the door for <script> tags.",
+                whereFound: "Social media platforms, dating apps, gaming forums, and author bios on blogs.",
+                whyDangerous: "This is a highly viral attack vector. A worm can be written so that anyone viewing the infected profile automatically updates their own profile with the same payload (e.g., the infamous Samy MySpace worm)."
+            },
+            {
+                id: "14-comment-systems",
+                title: "14. XSS in Comment Systems",
+                whatIsIt: "Stored XSS executed through user-generated comments appended to articles, videos, or products.",
+                howItWorks: [
+                    "The attacker posts a comment containing a malicious payload.",
+                    "The database stores the comment.",
+                    "All subsequent visitors to that article/video download the page, which includes the comment.",
+                    "Visitors' browsers execute the script."
+                ],
+                flowDiagram: "[Attacker Posts Comment with Payload] --> [Stored in DB] --> [Victim views Post] --> [Comment section renders Payload] --> [Execution]",
+                language: "php",
+                code: `<?php foreach($comments as $comment): ?>\n  <div class="comment">\n    <?php echo str_replace("<script>", "", $comment['body']); ?>\n  </div>\n<?php endforeach; ?>`,
+                whyMistake: "They rely on blocklists (trying to filter out bad words like script) instead of allowlists or proper HTML parsers, missing edge cases and alternative injection vectors.",
+                whereFound: "News websites, blog platforms (like outdated WordPress setups), and review sections.",
+                whyDangerous: "Comment sections are high-traffic areas. A single malicious comment can compromise thousands of users in minutes."
+            },
+            {
+                id: "15-chat-apps",
+                title: "15. XSS in Chat Applications",
+                whatIsIt: "Stored or DOM-based XSS where malicious payloads are injected into real-time messaging environments.",
+                howItWorks: [
+                    "The attacker sends a message containing an XSS payload via WebSockets or HTTP.",
+                    "The server broadcasts this message to the chat room.",
+                    "The chat client (browser) renders the message dynamically.",
+                    "The payload executes on the machines of everyone in the chat room."
+                ],
+                flowDiagram: "[Attacker sends Payload via WebSocket] --> [Chat Server] --(Broadcast)--> [All Connected Clients] --> [DOM updates with Payload & Executes]",
+                language: "javascript",
+                code: `// Client-side WebSocket listener\nsocket.on('newMessage', function(msg) {\n  let chatWindow = document.getElementById('chat');\n  chatWindow.innerHTML += "<p>" + msg.user + ": " + msg.text + "</p>";\n});`,
+                whyMistake: "Real-time chat requires rapid DOM updates. Developers prioritize speed and use innerHTML to append messages without pausing to sanitize the incoming data stream.",
+                whereFound: "Customer support portals, team collaboration tools, and live streams.",
+                whyDangerous: "The attack occurs instantly and simultaneously across multiple users in real-time, often bypassing traditional HTTP request firewalls because the payload travels over WebSockets."
+            },
+            {
+                id: "16-rich-text",
+                title: "16. XSS in Rich Text Editors",
+                whatIsIt: "XSS originating from 'What You See Is What You Get' (WYSIWYG) editors that allow users to generate complex HTML.",
+                howItWorks: [
+                    "The attacker uses a Rich Text Editor, intercepts the request, and modifies the raw HTML to include a payload.",
+                    "The server accepts the HTML (because the app is designed to accept HTML).",
+                    "The content is rendered elsewhere, executing the payload."
+                ],
+                flowDiagram: "[Attacker bypasses Editor UI, sends raw malicious HTML] --> [Server Accepts HTML] --> [Victim views Content] --> [Execution]",
+                language: "javascript",
+                code: `// Saving WYSIWYG data\nconst editorData = tinyMCE.activeEditor.getContent();\nfetch('/save', { method: 'POST', body: JSON.stringify({ html: editorData }) });\n\n// Rendering later without a library like DOMPurify\ndocument.getElementById('content').innerHTML = fetchedData.html;`,
+                whyMistake: "Because the business logic requires accepting HTML from the user, developers assume the WYSIWYG library handles server-side security (it doesn't; client-side libraries can be bypassed).",
+                whereFound: "Email marketing software, CMS dashboards, and wiki platforms.",
+                whyDangerous: "It provides an attacker with a sanctioned, open door to submit HTML. If the server lacks a robust HTML sanitizer (like HTMLPurifier), compromise is guaranteed."
+            },
+            {
+                id: "17-markdown",
+                title: "17. XSS in Markdown Renderers",
+                whatIsIt: "A vulnerability where poorly configured Markdown parsers convert malicious Markdown input into executable HTML.",
+                howItWorks: [
+                    "The attacker inputs Markdown designed to generate malicious HTML (e.g., [Click Here](javascript:alert(1))).",
+                    "The server or client parses the Markdown.",
+                    "It renders a functional exploit, like a JavaScript link or raw HTML."
+                ],
+                flowDiagram: "[Malicious Markdown: [link](javascript:X)] --> [Markdown Parser] --> [HTML Output: <a href=\"javascript:X\">] --> [Victim Clicks] --> [Execution]",
+                language: "javascript",
+                code: `const marked = require('marked');\n// marked.js without sanitize: true or DOMPurify\nlet html = marked.parse(userMarkdownInput);\ndocument.getElementById('preview').innerHTML = html;`,
+                whyMistake: "Developers mistakenly believe Markdown is inherently safe because it is plain text. They forget that Markdown's specification allows inline HTML and JavaScript protocols in links.",
+                whereFound: "Developer forums (like StackOverflow clones), GitHub readmes, and note-taking apps.",
+                whyDangerous: "It creates a false sense of security. Users implicitly trust Markdown environments, making them more likely to click malicious links."
+            },
+            {
+                id: "18-svg",
+                title: "18. XSS in SVG Uploads",
+                whatIsIt: "Stored XSS executed by uploading a malicious Scalable Vector Graphics (SVG) file, which is actually an XML document capable of storing JavaScript.",
+                howItWorks: [
+                    "The attacker crafts an SVG image containing <script> tags.",
+                    "The application allows image uploads and saves the SVG.",
+                    "The victim views the image directly in their browser.",
+                    "The browser parses the SVG XML and executes the embedded script."
+                ],
+                flowDiagram: "[Attacker Uploads Malicious SVG] --> [Server stores File] --> [Victim navigates to /uploads/avatar.svg] --> [Browser parses XML & Executes Script]",
+                language: "html",
+                code: `<!-- Malicious SVG example -->\n<svg xmlns="http://www.w3.org/2000/svg">\n  <script type="text/javascript">\n    alert("XSS via SVG!");\n  <\/script>\n  <circle cx="50" cy="50" r="40" fill="red" />\n</svg>`,
+                whyMistake: "Developers categorize SVGs alongside JPEGs and PNGs as 'static images.' They fail to realize SVGs are executable XML documents.",
+                whereFound: "Profile picture uploads, logo customizable themes, and asset management systems.",
+                whyDangerous: "It completely bypasses traditional text-based input sanitizers. If the SVG is served from the same domain as the main application, the script has full access to the user's session."
+            },
+            {
+                id: "19-json-dom",
+                title: "19. XSS in JSON-to-DOM Rendering",
+                whatIsIt: "DOM-based XSS that occurs when an application fetches JSON data via an API and unsafely writes the values directly into the DOM.",
+                howItWorks: [
+                    "The client-side application fetches data from a REST/GraphQL API.",
+                    "The API returns JSON containing a malicious payload (perhaps injected earlier).",
+                    "The front-end JavaScript loops through the JSON and writes it to the DOM using insecure methods."
+                ],
+                flowDiagram: "[Fetch API] --> [Receives JSON: {\"name\": \"<img src=x onerror=alert()>\"}] --> [JS processes JSON] --> [element.innerHTML = data.name] --> [Execution]",
+                language: "javascript",
+                code: `fetch('/api/users/1')\n  .then(response => response.json())\n  .then(data => {\n    // Data is assumed safe because it's JSON from our own API\n    document.getElementById('user-name').innerHTML = data.name;\n  });`,
+                whyMistake: "Developers often trust their own APIs implicitly. They assume that if data is structured as JSON and comes from their backend, it must be clean.",
+                whereFound: "Modern React/Vue/Angular applications (if avoiding their safe templating), dashboards, and data visualization tools.",
+                whyDangerous: "It represents a disconnect between backend and frontend security. The backend might store raw data safely, assuming the frontend will escape it. The frontend might assume the backend already sanitized it."
+            },
+            {
+                id: "20-third-party",
+                title: "20. XSS in Third-Party Widgets",
+                whatIsIt: "XSS introduced into an otherwise secure application by embedding a compromised or poorly coded external script (like a weather widget or support chat).",
+                howItWorks: [
+                    "The developer embeds a <script> tag from an external service.",
+                    "The external service is compromised by an attacker, or contains a vulnerability.",
+                    "The widget runs malicious code within the context of the host application."
+                ],
+                flowDiagram: "[Host App embeds <script src=\"widget.com\">] --> [Widget.com serves malicious JS] --> [Executes in Host App's DOM] --> [Accesses Host App Cookies]",
+                language: "html",
+                code: `<script src="https://sketchy-analytics-tool.com/tracker.js?userId=123"><\/script>`,
+                whyMistake: "Modern web development relies heavily on third-party services. Developers often lack the time to audit external code and blindly trust the providers.",
+                whereFound: "Analytics trackers, customer support chat bubbles, comment plugins (like Disqus alternatives), and social media sharing buttons.",
+                whyDangerous: "You don't control the code. A vulnerability in a single third-party widget provider can simultaneously compromise hundreds of different applications that embed it."
+            }
+        ];
+
+        // --- DOM Elements ---
+        const navContainer = document.getElementById('nav-container');
+        const vulnerabilitiesContainer = document.getElementById('vulnerabilities-container');
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileOverlay = document.getElementById('mobile-overlay');
+        const mainContent = document.getElementById('main-content');
+
+        // --- Render Application ---
+        function renderNav() {
+            xssData.forEach(item => {
+                const link = document.createElement('a');
+                link.href = `#${item.id}`;
+                link.className = 'nav-link block px-4 py-2 text-sm text-gray-300 rounded-lg hover:bg-gray-800 border-l-2 border-transparent transition-colors';
+                link.textContent = item.title;
+                link.setAttribute('data-target', item.id);
+                
+                link.addEventListener('click', (e) => {
+                    if (window.innerWidth < 1024) {
+                        toggleSidebar(); // Close sidebar on mobile after clicking
+                    }
+                });
+
+                navContainer.appendChild(link);
+            });
+        }
+
+        function renderVulnerabilities() {
+            xssData.forEach(item => {
+                const section = document.createElement('section');
+                section.id = item.id;
+                section.className = 'scroll-mt-12 bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl shadow-black/50';
+
+                // Format How It works list
+                const howItWorksList = item.howItWorks.map((step, index) => 
+                    `<li class="flex items-start gap-3">
+                        <span class="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-brand-500/20 text-brand-400 text-xs font-bold mt-0.5">${index + 1}</span>
+                        <span class="text-gray-300">${step}</span>
+                    </li>`
+                ).join('');
+
+                // Format Flow Diagram safely
+                const safeFlow = item.flowDiagram.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                
+                // Format Code carefully to escape HTML entities for Prism
+                const safeCode = item.code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                section.innerHTML = `
+                    <div class="border-b border-gray-800 p-6 lg:p-8 bg-gradient-to-r from-gray-900 to-gray-850">
+                        <h2 class="text-2xl lg:text-3xl font-bold text-white flex items-center gap-3">
+                            ${item.title}
+                        </h2>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-300">
+                                <i data-lucide="map-pin" class="w-4 h-4 text-gray-400"></i>
+                                ${item.whereFound}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 lg:p-8 space-y-10">
+                        <!-- What is it -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                                <i data-lucide="help-circle" class="w-5 h-5 text-brand-400"></i> What is it?
+                            </h3>
+                            <p class="text-gray-300 leading-relaxed">${item.whatIsIt}</p>
+                        </div>
+
+                        <!-- How it works -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                                <i data-lucide="cogs" class="w-5 h-5 text-brand-400"></i> How it Works
+                            </h3>
+                            <ul class="space-y-3">
+                                ${howItWorksList}
+                            </ul>
+                        </div>
+
+                        <!-- Flow Diagram -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                                <i data-lucide="git-merge" class="w-5 h-5 text-brand-400"></i> Flow Diagram
+                            </h3>
+                            <div class="flow-diagram rounded-xl p-4 lg:p-6 border border-gray-700 overflow-x-auto shadow-inner bg-gray-900">
+                                <pre class="text-brand-400 font-mono text-sm leading-relaxed whitespace-pre-wrap min-w-max">${safeFlow}</pre>
+                            </div>
+                        </div>
+
+                        <!-- Code Example -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                                <i data-lucide="code" class="w-5 h-5 text-brand-400"></i> Vulnerable Code
+                            </h3>
+                            <div class="rounded-xl overflow-hidden border border-gray-700">
+                                <div class="bg-gray-800 px-4 py-2 border-b border-gray-700 flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                                    <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                                    <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                                    <span class="ml-2 text-xs font-mono text-gray-400 uppercase">${item.language}</span>
+                                </div>
+                                <pre class="!m-0 !bg-[#1d1f21] !p-4 overflow-x-auto"><code class="language-${item.language}">${safeCode}</code></pre>
+                            </div>
+                        </div>
+
+                        <!-- Two columns for Mistake / Dangerous -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5">
+                                <h3 class="text-md font-semibold text-amber-500 mb-2 flex items-center gap-2">
+                                    <i data-lucide="alert-triangle" class="w-5 h-5"></i> Developer Mistake
+                                </h3>
+                                <p class="text-sm text-amber-200/80 leading-relaxed">${item.whyMistake}</p>
+                            </div>
+                            <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
+                                <h3 class="text-md font-semibold text-red-400 mb-2 flex items-center gap-2">
+                                    <i data-lucide="flame" class="w-5 h-5"></i> Why It's Dangerous
+                                </h3>
+                                <p class="text-sm text-red-200/80 leading-relaxed">${item.whyDangerous}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                vulnerabilitiesContainer.appendChild(section);
+            });
+        }
+
+        // --- Sidebar Interactions & Scroll Spy ---
+        function toggleSidebar() {
+            sidebar.classList.toggle('-translate-x-full');
+            mobileOverlay.classList.toggle('hidden');
+        }
+
+        mobileMenuBtn.addEventListener('click', toggleSidebar);
+        mobileOverlay.addEventListener('click', toggleSidebar);
+
+        function setupScrollSpy() {
+            const sections = document.querySelectorAll('main > div[id], section[id]');
+            const navLinks = document.querySelectorAll('.nav-link');
+
+            mainContent.addEventListener('scroll', () => {
+                let current = '';
+                const scrollY = mainContent.scrollTop;
+
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    const sectionHeight = section.clientHeight;
+                    // Add some offset so it triggers smoothly when scrolling
+                    if (scrollY >= (sectionTop - 100)) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active', 'bg-gray-800', 'text-brand-400');
+                    link.classList.add('text-gray-300');
+                    
+                    if (link.getAttribute('href') === `#${current}`) {
+                        link.classList.add('active', 'bg-gray-800', 'text-brand-400');
+                        link.classList.remove('text-gray-300');
+                        // Optional: Scroll the sidebar to keep active link in view
+                        link.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }
+                });
+            });
+        }
+
+        // --- Initialize ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderNav();
+            renderVulnerabilities();
+            
+            // Initialize Lucide Icons
+            lucide.createIcons();
+            
+            // Re-highlight Prism.js after dynamic content injection
+            Prism.highlightAll();
+
+            // Setup the scroll tracker for sidebar
+            setupScrollSpy();
+        });
+
+    </script>
+</body>
+</html>
